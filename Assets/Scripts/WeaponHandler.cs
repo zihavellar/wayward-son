@@ -13,12 +13,18 @@ namespace WaywardSon
         public Material tracerMaterial;
 
         private PlayerController playerController;
+        private FlashlightController flashlight;
         private float nextFireTime = 0f;
-        private int currentAmmo = 0;
+        public int currentAmmo { get; private set; } = 0;
+
+        [Header("Passive Vision")]
+        [Tooltip("Multiplicador de dano quando sem lanterna")]
+        public float passiveDamageMultiplier = 0.7f;
 
         private void Start()
         {
             playerController = GetComponent<PlayerController>();
+            flashlight = GetComponent<FlashlightController>();
             
             if (activeWeapon != null)
             {
@@ -95,6 +101,13 @@ namespace WaywardSon
             direction.y += Random.Range(-activeWeapon.spread, activeWeapon.spread);
             direction.Normalize();
 
+            // Calculate effective damage (reduced when flashlight is off)
+            int effectiveDamage = activeWeapon.damage;
+            if (flashlight != null && !flashlight.IsFlashlightOn)
+            {
+                effectiveDamage = Mathf.RoundToInt(activeWeapon.damage * passiveDamageMultiplier);
+            }
+
             RaycastHit hit;
             Vector3 endPoint = firePoint.position + direction * activeWeapon.range;
 
@@ -106,7 +119,7 @@ namespace WaywardSon
                 EnemyHealth dummy = hit.collider.GetComponent<EnemyHealth>();
                 if (dummy != null)
                 {
-                    dummy.TakeDamage(activeWeapon.damage);
+                    dummy.TakeDamage(effectiveDamage);
                 }
                 else
                 {
@@ -130,6 +143,13 @@ namespace WaywardSon
             direction.y += Random.Range(-activeWeapon.spread, activeWeapon.spread);
             direction.Normalize();
 
+            // Calculate effective damage (reduced when flashlight is off)
+            int effectiveDamage = activeWeapon.damage;
+            if (flashlight != null && !flashlight.IsFlashlightOn)
+            {
+                effectiveDamage = Mathf.RoundToInt(activeWeapon.damage * passiveDamageMultiplier);
+            }
+
             GameObject projObj = Instantiate(activeWeapon.projectilePrefab, firePoint.position, Quaternion.LookRotation(direction));
             
             Projectile proj = projObj.GetComponent<Projectile>();
@@ -137,7 +157,7 @@ namespace WaywardSon
             {
                 proj = projObj.AddComponent<Projectile>();
             }
-            proj.damage = activeWeapon.damage;
+            proj.damage = effectiveDamage;
         }
 
         private void CreateTracer(Vector3 start, Vector3 end)
@@ -166,18 +186,27 @@ namespace WaywardSon
             Destroy(tracerObj, 0.05f); // vanish tracer after 0.05s
         }
 
-        private void OnGUI()
+        // ─── Public API for Inventory ───────────────────────────────────────────
+
+        /// <summary>Equip a new weapon from the inventory.</summary>
+        public void EquipWeapon(WeaponData data)
         {
-            if (activeWeapon == null) return;
+            if (data == null) return;
+            activeWeapon = data;
+            currentAmmo  = data.ammoCapacity;
+            Debug.Log($"[WeaponHandler] Equipado: {data.weaponName} ({currentAmmo} balas)");
+        }
 
-            GUIStyle style = new GUIStyle();
-            style.fontSize = 20;
-            style.normal.textColor = Color.white;
-
-            string aimState = playerController != null && playerController.isAiming ? " [AIMING]" : "";
-            GUI.Label(new Rect(20, 20, 300, 30), $"Weapon: {activeWeapon.weaponName}{aimState}", style);
-            GUI.Label(new Rect(20, 50, 300, 30), $"Ammo: {currentAmmo} / {activeWeapon.ammoCapacity}", style);
-            GUI.Label(new Rect(20, 80, 600, 30), "Controls: WASD / L-Stick (Move) | Hold RMB / LT (Aim) | LMB / RT (Fire)", style);
+        /// <summary>Add ammo to the currently equipped weapon.</summary>
+        public void AddAmmo(int amount)
+        {
+            if (activeWeapon == null)
+            {
+                Debug.LogWarning("[WeaponHandler] Nenhuma arma equipada para adicionar munição.");
+                return;
+            }
+            currentAmmo = Mathf.Min(currentAmmo + amount, activeWeapon.ammoCapacity * 3); // max 3x cap
+            Debug.Log($"[WeaponHandler] +{amount} munição → {currentAmmo}");
         }
     }
 }

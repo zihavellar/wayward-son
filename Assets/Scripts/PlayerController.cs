@@ -14,9 +14,16 @@ namespace WaywardSon
         public bool isAiming = false;
         public float autoAimRange = 12.0f;
 
+        [Header("Passive Vision (No Flashlight)")]
+        [Tooltip("Redução de velocidade sem lanterna (0.8 = 80%)")]
+        public float passiveSpeedPenalty = 0.8f;
+        [Tooltip("Redução do alcance de auto-aim sem lanterna")]
+        public float passiveAimRangeMultiplier = 0.6f;
+
         private CharacterController controller;
         private WeaponHandler weaponHandler;
         private PlayerHealth playerHealth;
+        private FlashlightController flashlight;
         private Camera mainCamera;
         private Vector2 moveInput;
         private Vector3 velocity;
@@ -26,6 +33,7 @@ namespace WaywardSon
             controller = GetComponent<CharacterController>();
             weaponHandler = GetComponent<WeaponHandler>();
             playerHealth = GetComponent<PlayerHealth>();
+            flashlight = GetComponent<FlashlightController>();
             mainCamera = Camera.main;
         }
 
@@ -181,6 +189,12 @@ namespace WaywardSon
                     currentSpeed *= playerHealth.SpeedMultiplier;
                 }
 
+                // Apply Passive Vision penalty (no flashlight = slower)
+                if (flashlight != null && !flashlight.IsFlashlightOn)
+                {
+                    currentSpeed *= passiveSpeedPenalty;
+                }
+
                 moveDirection = GetCameraRelativeDirection(moveInput) * currentSpeed;
             }
 
@@ -195,7 +209,15 @@ namespace WaywardSon
         {
             EnemyHealth[] enemies = FindObjectsOfType<EnemyHealth>();
             Transform bestTarget = null;
-            float closestDistance = autoAimRange;
+            float effectiveRange = autoAimRange;
+
+            // Reduce aim range when flashlight is off (passive vision penalty)
+            if (flashlight != null && !flashlight.IsFlashlightOn)
+            {
+                effectiveRange *= passiveAimRangeMultiplier;
+            }
+
+            float closestDistance = effectiveRange;
 
             foreach (EnemyHealth enemy in enemies)
             {
@@ -241,33 +263,6 @@ namespace WaywardSon
             camRight.Normalize();
 
             return (camForward * input.y + camRight * input.x).normalized;
-        }
-
-        private void OnGUI()
-        {
-            // Draw Player Health ECG Status (OnGUI legacy HUD helper)
-            if (playerHealth == null) return;
-
-            GUIStyle style = new GUIStyle();
-            style.fontSize = 20;
-            style.fontStyle = FontStyle.Bold;
-
-            Color hpColor = Color.green;
-            switch (playerHealth.CurrentState)
-            {
-                case PlayerHealth.HealthState.Fine:
-                    hpColor = Color.green;
-                    break;
-                case PlayerHealth.HealthState.Caution:
-                    hpColor = Color.yellow;
-                    break;
-                case PlayerHealth.HealthState.Danger:
-                    hpColor = Color.red;
-                    break;
-            }
-            style.normal.textColor = hpColor;
-
-            GUI.Label(new Rect(20, Screen.height - 50, 400, 30), $"ECG State: {playerHealth.CurrentState.ToString().ToUpper()} ({playerHealth.currentHealth} / {playerHealth.maxHealth} HP)", style);
         }
     }
 }
