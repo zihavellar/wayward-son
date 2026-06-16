@@ -124,7 +124,11 @@ namespace WaywardSon.SaveSystem
                     string snapJson = File.ReadAllText(snapFile);
                     var snap = JsonUtility.FromJson<SaveSnapshot>(snapJson);
                     if (snap != null)
+                    {
+                        snap.data ??= new GameSaveData();
+                        snap.data.AfterDeserialize();
                         snapshots[snap.id] = snap;
+                    }
                 }
             }
 
@@ -144,6 +148,7 @@ namespace WaywardSon.SaveSystem
             };
 
             PopulateSnapshotData(snapshot.data);
+            snapshot.data.BeforeSerialize();
 
             snapshots[snapshot.id] = snapshot;
             currentProfile.commitIDs.Add(snapshot.id);
@@ -157,6 +162,8 @@ namespace WaywardSon.SaveSystem
 
             if (enableDebugJSON)
                 SaveDebugDelta(null, snapshot);
+
+            ApplySnapshotData(snapshot.data);
 
             return snapshot;
         }
@@ -185,6 +192,17 @@ namespace WaywardSon.SaveSystem
 
             ApplySnapshotData(snapshot.data);
             return snapshot;
+        }
+
+        // ─── Apply (load snapshot data into scene) ─────────────────────
+
+        public SaveSnapshot ApplySnapshot(string snapshotID)
+        {
+            if (currentProfile == null) return null;
+            var target = GetSnapshot(snapshotID);
+            if (target == null) return null;
+            ApplySnapshotData(target.data);
+            return target;
         }
 
         // ─── Checkout (with stash) ─────────────────────────────────────
@@ -443,6 +461,106 @@ namespace WaywardSon.SaveSystem
             }
 
             return obj.ToString();
+        }
+
+        private static int idx;
+        private static string src;
+
+        public static object Deserialize(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return null;
+            idx = 0;
+            src = json;
+            return ParseValue();
+        }
+
+        private static object ParseValue()
+        {
+            SkipWhitespace();
+            if (idx >= src.Length) return null;
+            char c = src[idx];
+            if (c == '{') return ParseObject();
+            if (c == '[') return ParseArray();
+            if (c == '"') return ParseString();
+            if (c == 't' || c == 'f') return ParseBool();
+            if (c == 'n') { idx += 4; return null; }
+            return ParseNumber();
+        }
+
+        private static Dictionary<string, object> ParseObject()
+        {
+            var dict = new Dictionary<string, object>();
+            idx++;
+            SkipWhitespace();
+            if (src[idx] == '}') { idx++; return dict; }
+            while (true)
+            {
+                SkipWhitespace();
+                string key = ParseString();
+                SkipWhitespace();
+                idx++;
+                SkipWhitespace();
+                dict[key] = ParseValue();
+                SkipWhitespace();
+                if (src[idx] == '}') { idx++; return dict; }
+                idx++;
+            }
+        }
+
+        private static List<object> ParseArray()
+        {
+            var list = new List<object>();
+            idx++;
+            SkipWhitespace();
+            if (src[idx] == ']') { idx++; return list; }
+            while (true)
+            {
+                list.Add(ParseValue());
+                SkipWhitespace();
+                if (src[idx] == ']') { idx++; return list; }
+                idx++;
+            }
+        }
+
+        private static string ParseString()
+        {
+            idx++;
+            int start = idx;
+            while (src[idx] != '"')
+            {
+                if (src[idx] == '\\') idx++;
+                idx++;
+            }
+            string raw = src.Substring(start, idx - start);
+            idx++;
+            return raw.Replace("\\\"", "\"").Replace("\\\\", "\\").Replace("\\n", "\n").Replace("\\t", "\t");
+        }
+
+        private static object ParseNumber()
+        {
+            int start = idx;
+            bool isFloat = false;
+            while (idx < src.Length && (char.IsDigit(src[idx]) || src[idx] == '.' || src[idx] == '-' || src[idx] == 'e' || src[idx] == 'E'))
+            {
+                if (src[idx] == '.' || src[idx] == 'e' || src[idx] == 'E') isFloat = true;
+                idx++;
+            }
+            string num = src.Substring(start, idx - start);
+            if (isFloat)
+                return float.Parse(num, System.Globalization.CultureInfo.InvariantCulture);
+            return int.Parse(num, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        private static bool ParseBool()
+        {
+            if (src[idx] == 't') { idx += 4; return true; }
+            idx += 5;
+            return false;
+        }
+
+        private static void SkipWhitespace()
+        {
+            while (idx < src.Length && char.IsWhiteSpace(src[idx])) idx++;
         }
     }
 }

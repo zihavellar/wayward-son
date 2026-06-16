@@ -51,5 +51,26 @@ namespace WaywardSon.SaveSystem.Editor
             Undo.RegisterCreatedObjectUndo(go, "Create SaveManager");
             Debug.Log("[SaveDebugger] SaveManager created in scene.");
         }
+
+        [MenuItem("Wayward Son/Add SaveDebugUI to Scene")]
+        private static void AddSaveDebugUI()
+        {
+            if (GameObject.FindObjectOfType<SaveDebugUI>() != null)
+            {
+                Debug.Log("[SaveDebugger] SaveDebugUI already exists in scene.");
+                return;
+            }
+
+            var go = new GameObject("SaveDebugUI");
+            go.AddComponent<SaveDebugUI>();
+            Undo.RegisterCreatedObjectUndo(go, "Create SaveDebugUI");
+            Debug.Log("[SaveDebugger] SaveDebugUI created in scene.");
+        }
+
+        [MenuItem("Wayward Son/Open Save Browser (Editor)")]
+        private static void OpenSaveBrowser()
+        {
+            SaveEditorWindow.Open();
+        }
     }
 }
