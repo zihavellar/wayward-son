@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using WaywardSon.SaveSystem;
 
 namespace WaywardSon
 {
@@ -8,7 +10,7 @@ namespace WaywardSon
     /// drenagem com uso e recarga via item Consumable (Battery).
     /// Também controla a "visão passiva" quando a lanterna está desligada.
     /// </summary>
-    public class FlashlightController : MonoBehaviour
+    public class FlashlightController : MonoBehaviour, ISaveable
     {
         [Header("Flashlight Settings")]
         public Light spotLight;
@@ -41,6 +43,30 @@ namespace WaywardSon
         public bool IsFlashlightOn => isOn;
         public float CurrentBattery => currentBattery;
         public float BatteryPercentage => currentBattery / maxBattery;
+
+        // ─── ISaveable ──────────────────────────────────────────
+        public string SaveID => "Flashlight";
+
+        public void CollectData(Dictionary<string, object> data)
+        {
+            data["isOn"] = isOn;
+            data["currentBattery"] = currentBattery;
+            data["maxBattery"] = maxBattery;
+        }
+
+        public void ApplyData(Dictionary<string, object> data)
+        {
+            if (data.TryGetValue("isOn", out var on))
+            {
+                bool shouldBeOn = (bool)on;
+                if (shouldBeOn != isOn)
+                    SetFlashlight(shouldBeOn);
+            }
+            if (data.TryGetValue("currentBattery", out var bat))
+                currentBattery = System.Convert.ToSingle(bat);
+            if (data.TryGetValue("maxBattery", out var max))
+                maxBattery = System.Convert.ToSingle(max);
+        }
 
         private void Start()
         {

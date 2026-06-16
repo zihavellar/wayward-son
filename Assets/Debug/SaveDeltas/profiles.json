@@ -1,0 +1,4 @@
+{
+"profiles": ["Default", "PlayerTest"],
+"activeProfile": "PlayerTest"
+}

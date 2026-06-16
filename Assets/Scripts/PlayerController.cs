@@ -1,10 +1,12 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using WaywardSon.SaveSystem;
 
 namespace WaywardSon
 {
     [RequireComponent(typeof(CharacterController))]
-    public class PlayerController : MonoBehaviour
+    public class PlayerController : MonoBehaviour, ISaveable
     {
         [Header("Movement")]
         public float speed = 5.0f;
@@ -27,6 +29,38 @@ namespace WaywardSon
         private Camera mainCamera;
         private Vector2 moveInput;
         private Vector3 velocity;
+
+        // ─── ISaveable ──────────────────────────────────────────
+        public string SaveID => "Player";
+
+        public void CollectData(Dictionary<string, object> data)
+        {
+            data["positionX"] = transform.position.x;
+            data["positionY"] = transform.position.y;
+            data["positionZ"] = transform.position.z;
+            data["rotationY"] = transform.eulerAngles.y;
+            data["isAiming"] = isAiming;
+            data["speed"] = speed;
+            data["autoAimRange"] = autoAimRange;
+        }
+
+        public void ApplyData(Dictionary<string, object> data)
+        {
+            if (data.TryGetValue("positionX", out var px) &&
+                data.TryGetValue("positionY", out var py) &&
+                data.TryGetValue("positionZ", out var pz))
+            {
+                transform.position = new Vector3(
+                    System.Convert.ToSingle(px),
+                    System.Convert.ToSingle(py),
+                    System.Convert.ToSingle(pz));
+                Physics.SyncTransforms();
+            }
+            if (data.TryGetValue("rotationY", out var ry))
+                transform.eulerAngles = new Vector3(0, System.Convert.ToSingle(ry), 0);
+            if (data.TryGetValue("isAiming", out var aim))
+                isAiming = (bool)aim;
+        }
 
         private void Start()
         {
