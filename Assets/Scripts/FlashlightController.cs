@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using WaywardSon.SaveSystem;
 
 namespace WaywardSon
 {
@@ -8,21 +10,13 @@ namespace WaywardSon
     /// drenagem com uso e recarga via item Consumable (Battery).
     /// Também controla a "visão passiva" quando a lanterna está desligada.
     /// </summary>
-    public class FlashlightController : MonoBehaviour
+    public class FlashlightController : MonoBehaviour, ISaveable
     {
         [Header("Flashlight Settings")]
         public Light spotLight;
         public float maxBattery = 100f;
         public float drainRate = 0.8f;        // bateria por segundo (~125s autonomia com 100 de bateria)
         public float resumeDrainDelay = 0.5f; // delay antes de voltar a drenar após recarga
-
-        [Header("Vision Base Values")]
-        [Tooltip("Alcance base da lanterna (sem bônus de Wits)")]
-        [SerializeField] private float _baseFlashlightRange = 14f;
-        [Tooltip("Intensidade base da lanterna")]
-        [SerializeField] private float _baseFlashlightIntensity = 7f;
-        [Tooltip("Alcance base da visão passiva (sem lanterna)")]
-        [SerializeField] private float _basePassiveVisionRange = 3f;
 
         [Header("Passive Vision (No Flashlight)")]
         [Tooltip("Raixo de visão passiva (sem lanterna) — menor que a lanterna")]
@@ -34,12 +28,11 @@ namespace WaywardSon
 
         [Header("References")]
         public Inventory inventory;
-        [Tooltip("Referência ao sistema de atributos do personagem (para ler Wits)")]
-        [SerializeField] private CharacterStats _characterStats;
 
         // State
         private float currentBattery;
         private bool isOn = false;
+        private bool isDraining = false;
         private float lastDrainTime;
         private PlayerController playerController;
 
@@ -51,8 +44,29 @@ namespace WaywardSon
         public float CurrentBattery => currentBattery;
         public float BatteryPercentage => currentBattery / maxBattery;
 
-        /// <summary>Alcance base da visão passiva (sem bônus de Wits).</summary>
-        public float BasePassiveVisionRange => _basePassiveVisionRange;
+        // ─── ISaveable ──────────────────────────────────────────
+        public string SaveID => "Flashlight";
+
+        public void CollectData(Dictionary<string, object> data)
+        {
+            data["isOn"] = isOn;
+            data["currentBattery"] = currentBattery;
+            data["maxBattery"] = maxBattery;
+        }
+
+        public void ApplyData(Dictionary<string, object> data)
+        {
+            if (data.TryGetValue("isOn", out var on))
+            {
+                bool shouldBeOn = (bool)on;
+                if (shouldBeOn != isOn)
+                    SetFlashlight(shouldBeOn);
+            }
+            if (data.TryGetValue("currentBattery", out var bat))
+                currentBattery = System.Convert.ToSingle(bat);
+            if (data.TryGetValue("maxBattery", out var max))
+                maxBattery = System.Convert.ToSingle(max);
+        }
 
         private void Start()
         {
@@ -70,8 +84,8 @@ namespace WaywardSon
                 spotLight = lightObj.AddComponent<Light>();
                 spotLight.type = LightType.Spot;
                 spotLight.color = flashlightColor;
-                spotLight.intensity = _baseFlashlightIntensity;
-                spotLight.range = _baseFlashlightRange;
+                spotLight.intensity = 7f;       // intensidade aumentada para melhor visibilidade
+                spotLight.range = 14f;          // alcance limitado
                 spotLight.spotAngle = 55f;      // cone mais estreito
                 spotLight.innerSpotAngle = 35f; // cone interno estreito
             }
@@ -81,13 +95,6 @@ namespace WaywardSon
 
             if (inventory == null)
                 inventory = GetComponent<Inventory>();
-
-            // Busca CharacterStats se não atribuído
-            if (_characterStats == null)
-                _characterStats = GetComponent<CharacterStats>();
-
-            // Aplica bônus de Wits após inicializar
-            ApplyWitsBonus();
         }
 
         private void Update()
@@ -141,10 +148,7 @@ namespace WaywardSon
         {
             isOn = state;
             if (spotLight != null)
-            {
                 spotLight.enabled = state;
-                if (state) ApplyWitsBonus(); // Aplica bônus ao ligar
-            }
 
             Debug.Log($"[Flashlight] {(state ? "LIGADA" : "DESLIGADA")} | Bateria: {currentBattery:F0}/{maxBattery}");
         }
@@ -172,50 +176,6 @@ namespace WaywardSon
 
             Debug.Log("[Flashlight] Bateria já está no máximo!");
             return false;
-        }
-
-        // ═══════════════════════════════════════════════════════════════════
-        // WITS VISION BONUS
-        // ═══════════════════════════════════════════════════════════════════
-
-        /// <summary>
-        /// Calcula o bônus de Wits para visão.
-        /// Fórmula: +15% de alcance/intensidade por ponto de Wits (1-5).
-        /// Wits 1 = 1.0x (base), Wits 2 = 1.15x, Wits 3 = 1.30x,
-        /// Wits 4 = 1.45x, Wits 5 = 1.60x.
-        /// </summary>
-        /// <returns>Multiplicador de bônus (mínimo 1.0).</returns>
-        private float GetWitsVisionBonus()
-        {
-            if (_characterStats == null) return 1f;
-
-            int wits = _characterStats.Attributes.Wits;
-            return 1f + ((wits - 1) * 0.15f);
-        }
-
-        /// <summary>
-        /// Aplica o bônus de Wits ao alcance e intensidade da lanterna.
-        /// Deve ser chamado ao ligar a lanterna e ao inicializar.
-        /// </summary>
-        public void ApplyWitsBonus()
-        {
-            if (spotLight == null) return;
-
-            float bonus = GetWitsVisionBonus();
-            spotLight.range = _baseFlashlightRange * bonus;
-            spotLight.intensity = _baseFlashlightIntensity * bonus;
-
-            Debug.Log($"[Flashlight] Wits bonus aplicado: {bonus:F2}x → Range: {spotLight.range:F1}, Intensity: {spotLight.intensity:F1}");
-        }
-
-        /// <summary>
-        /// Retorna o alcance da visão passiva com bônus de Wits.
-        /// </summary>
-        /// <returns>Alcance efetivo da visão passiva.</returns>
-        public float GetEffectivePassiveVisionRange()
-        {
-            float bonus = GetWitsVisionBonus();
-            return _basePassiveVisionRange * bonus;
         }
     }
 }

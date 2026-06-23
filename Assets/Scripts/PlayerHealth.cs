@@ -1,14 +1,33 @@
+using System.Collections.Generic;
 using UnityEngine;
+using WaywardSon.SaveSystem;
 
 namespace WaywardSon
 {
-    public class PlayerHealth : MonoBehaviour
+    public class PlayerHealth : MonoBehaviour, ISaveable
     {
         public enum HealthState { Fine, Caution, Danger }
 
         [Header("Health Settings")]
         public int maxHealth = 100;
         public int currentHealth;
+
+        // ─── ISaveable ──────────────────────────────────────────
+        public string SaveID => "Player";
+
+        public void CollectData(Dictionary<string, object> data)
+        {
+            data["health"] = currentHealth;
+            data["maxHealth"] = maxHealth;
+        }
+
+        public void ApplyData(Dictionary<string, object> data)
+        {
+            if (data.TryGetValue("health", out var h))
+                currentHealth = System.Convert.ToInt32(h);
+            if (data.TryGetValue("maxHealth", out var mh))
+                maxHealth = System.Convert.ToInt32(mh);
+        }
 
         private void Start()
         {

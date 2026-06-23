@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using WaywardSon.SaveSystem;
 
 namespace WaywardSon
 {
@@ -10,7 +11,7 @@ namespace WaywardSon
     /// Controle: D-pad/analógico navega | A/Cruz confirma/move | X/Quadrado usa |
     ///           B/Círculo cancela | Y/Triângulo abre-fecha.
     /// </summary>
-    public class Inventory : MonoBehaviour
+    public class Inventory : MonoBehaviour, ISaveable
     {
         // ─── Runtime item slot ────────────────────────────────────────────────
         public class InventoryItem
@@ -97,6 +98,71 @@ namespace WaywardSon
                          _labelStyle, _hintStyle, _tooltipStyle, _tooltipTitleStyle,
                          _equippedBadgeStyle;
         private bool _stylesReady = false;
+
+        // ─── ISaveable ────────────────────────────────────────────────────────
+        public string SaveID => "Inventory";
+
+        public void CollectData(Dictionary<string, object> data)
+        {
+            data["showInventory"] = showInventory;
+            data["gridWidth"] = gridWidth;
+            data["gridHeight"] = gridHeight;
+
+            var itemList = new List<Dictionary<string, object>>();
+            foreach (var item in items)
+            {
+                var itemData = new Dictionary<string, object>
+                {
+                    ["itemName"] = item.itemName,
+                    ["posX"] = item.position.x,
+                    ["posY"] = item.position.y
+                };
+                itemList.Add(itemData);
+            }
+            data["items"] = itemList;
+
+            data["equippedItemName"] = _equippedItem?.itemName ?? "";
+        }
+
+        public void ApplyData(Dictionary<string, object> data)
+        {
+            if (data.TryGetValue("showInventory", out var si))
+                showInventory = (bool)si;
+
+            if (data.TryGetValue("items", out var rawItems) && rawItems is List<object> itemList)
+            {
+                items.Clear();
+                RebuildGrid();
+
+                foreach (var raw in itemList)
+                {
+                    if (raw is Dictionary<string, object> itemData)
+                    {
+                        string itemName = itemData.TryGetValue("itemName", out var n) ? n.ToString() : "";
+                        int posX = itemData.TryGetValue("posX", out var px) ? System.Convert.ToInt32(px) : 0;
+                        int posY = itemData.TryGetValue("posY", out var py) ? System.Convert.ToInt32(py) : 0;
+
+                        var definitions = Resources.FindObjectsOfTypeAll<ItemDefinition>();
+                        ItemDefinition def = null;
+                        foreach (var d in definitions)
+                        {
+                            if (d.itemName == itemName)
+                            {
+                                def = d;
+                                break;
+                            }
+                        }
+
+                        if (def != null)
+                        {
+                            var invItem = new InventoryItem(def, new Vector2Int(posX, posY));
+                            items.Add(invItem);
+                        }
+                    }
+                }
+                RebuildGrid();
+            }
+        }
 
         // ─── Lifecycle ────────────────────────────────────────────────────────
         private void Awake()

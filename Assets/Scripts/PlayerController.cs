@@ -1,10 +1,12 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using WaywardSon.SaveSystem;
 
 namespace WaywardSon
 {
     [RequireComponent(typeof(CharacterController))]
-    public class PlayerController : MonoBehaviour
+    public class PlayerController : MonoBehaviour, ISaveable
     {
         [Header("Movement")]
         public float speed = 5.0f;
@@ -24,13 +26,41 @@ namespace WaywardSon
         private WeaponHandler weaponHandler;
         private PlayerHealth playerHealth;
         private FlashlightController flashlight;
-        private CharacterStamina characterStamina;
         private Camera mainCamera;
         private Vector2 moveInput;
         private Vector3 velocity;
 
-        /// <summary>Input de movimento normalizado (acesso público para CharacterStamina, etc).</summary>
-        public Vector2 MoveInput => moveInput;
+        // ─── ISaveable ──────────────────────────────────────────
+        public string SaveID => "Player";
+
+        public void CollectData(Dictionary<string, object> data)
+        {
+            data["positionX"] = transform.position.x;
+            data["positionY"] = transform.position.y;
+            data["positionZ"] = transform.position.z;
+            data["rotationY"] = transform.eulerAngles.y;
+            data["isAiming"] = isAiming;
+            data["speed"] = speed;
+            data["autoAimRange"] = autoAimRange;
+        }
+
+        public void ApplyData(Dictionary<string, object> data)
+        {
+            if (data.TryGetValue("positionX", out var px) &&
+                data.TryGetValue("positionY", out var py) &&
+                data.TryGetValue("positionZ", out var pz))
+            {
+                transform.position = new Vector3(
+                    System.Convert.ToSingle(px),
+                    System.Convert.ToSingle(py),
+                    System.Convert.ToSingle(pz));
+                Physics.SyncTransforms();
+            }
+            if (data.TryGetValue("rotationY", out var ry))
+                transform.eulerAngles = new Vector3(0, System.Convert.ToSingle(ry), 0);
+            if (data.TryGetValue("isAiming", out var aim))
+                isAiming = (bool)aim;
+        }
 
         private void Start()
         {
@@ -38,7 +68,6 @@ namespace WaywardSon
             weaponHandler = GetComponent<WeaponHandler>();
             playerHealth = GetComponent<PlayerHealth>();
             flashlight = GetComponent<FlashlightController>();
-            characterStamina = GetComponent<CharacterStamina>();
             mainCamera = Camera.main;
         }
 
@@ -91,41 +120,6 @@ namespace WaywardSon
             bool mouseAim = Mouse.current != null && Mouse.current.rightButton.isPressed;
             bool gamepadAim = Gamepad.current != null && (Gamepad.current.leftTrigger.isPressed || Gamepad.current.leftShoulder.isPressed);
             isAiming = mouseAim || gamepadAim;
-
-            // 4. Sprint Input (Left Shift on Keyboard, Left Stick Click on Gamepad)
-            HandleSprintInput();
-        }
-
-        /// <summary>
-        /// Processa input de sprint: segurar Left Shift (teclado) ou clicar no Left Stick (gamepad).
-        /// Sprint só é possível quando se movendo, não está mirando e tem stamina.
-        /// </summary>
-        private void HandleSprintInput()
-        {
-            if (characterStamina == null) return;
-
-            bool sprintHeld = false;
-
-            // Keyboard: Left Shift
-            if (Keyboard.current != null)
-                sprintHeld = Keyboard.current.leftShiftKey.isPressed;
-
-            // Gamepad: Left Stick Click (toggle press)
-            if (!sprintHeld && Gamepad.current != null)
-                sprintHeld = Gamepad.current.leftStickButton.isPressed;
-
-            bool wantsToSprint = sprintHeld
-                              && moveInput.sqrMagnitude > 0.001f
-                              && !isAiming;
-
-            if (wantsToSprint)
-            {
-                characterStamina.TryStartSprint();
-            }
-            else
-            {
-                characterStamina.StopSprint();
-            }
         }
 
         private void HandleRotationAndAiming()
@@ -235,12 +229,6 @@ namespace WaywardSon
                     currentSpeed *= passiveSpeedPenalty;
                 }
 
-                // Apply Sprint Speed Multiplier (dobra a velocidade)
-                if (characterStamina != null && characterStamina.IsSprinting)
-                {
-                    currentSpeed *= characterStamina.SprintSpeedMultiplier;
-                }
-
                 moveDirection = GetCameraRelativeDirection(moveInput) * currentSpeed;
             }
 
@@ -253,7 +241,7 @@ namespace WaywardSon
 
         private Transform GetAutoAimTarget()
         {
-            EnemyHealth[] enemies = FindObjectsByType<EnemyHealth>(FindObjectsSortMode.None);
+            EnemyHealth[] enemies = FindObjectsOfType<EnemyHealth>();
             Transform bestTarget = null;
             float effectiveRange = autoAimRange;
 

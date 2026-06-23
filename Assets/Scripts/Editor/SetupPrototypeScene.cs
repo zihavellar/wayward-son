@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine.AI;
+using WaywardSon.SaveSystem;
 
 namespace WaywardSon.Editor
 {
@@ -179,6 +180,9 @@ namespace WaywardSon.Editor
             nozzle.transform.localPosition = new Vector3(0.3f, 0.5f, 0.8f);
             weaponHandler.firePoint = nozzle.transform;
 
+            // Add Save Commands (auto/manual save)
+            player.AddComponent<SaveCommands>();
+
             // Add HUD Manager (unified HUD)
             var hudManager = player.AddComponent<HUDManager>();
             hudManager.playerController = playerController;
@@ -295,7 +299,12 @@ namespace WaywardSon.Editor
             // Add NavMeshAgent for movement
             zombie.AddComponent<NavMeshAgent>();
 
-            // 9. Spawn Collectible WorldItems around the arena
+            // 9. Create SaveManager (persistent across scenes)
+            GameObject saveMgr = new GameObject("SaveManager");
+            saveMgr.AddComponent<SaveManager>();
+            Object.DontDestroyOnLoad(saveMgr);
+
+            // 10. Spawn Collectible WorldItems around the arena
             SpawnWorldItems();
 
             // Save the scene

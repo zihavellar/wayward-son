@@ -1,9 +1,11 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using WaywardSon.SaveSystem;
 
 namespace WaywardSon
 {
-    public class WeaponHandler : MonoBehaviour
+    public class WeaponHandler : MonoBehaviour, ISaveable
     {
         [Header("Weapon Config")]
         public WeaponData activeWeapon;
@@ -20,6 +22,39 @@ namespace WaywardSon
         [Header("Passive Vision")]
         [Tooltip("Multiplicador de dano quando sem lanterna")]
         public float passiveDamageMultiplier = 0.7f;
+
+        // ─── ISaveable ──────────────────────────────────────────
+        public string SaveID => "Weapon";
+
+        public void CollectData(Dictionary<string, object> data)
+        {
+            data["activeWeaponName"] = activeWeapon != null ? activeWeapon.weaponName : "";
+            data["currentAmmo"] = currentAmmo;
+        }
+
+        public void ApplyData(Dictionary<string, object> data)
+        {
+            if (data.TryGetValue("currentAmmo", out var ammo))
+                currentAmmo = System.Convert.ToInt32(ammo);
+            if (data.TryGetValue("activeWeaponName", out var wName))
+            {
+                string name = wName.ToString();
+                if (string.IsNullOrEmpty(name))
+                    activeWeapon = null;
+                else if (activeWeapon == null || activeWeapon.weaponName != name)
+                {
+                    var weapons = Resources.FindObjectsOfTypeAll<WeaponData>();
+                    foreach (var w in weapons)
+                    {
+                        if (w.weaponName == name)
+                        {
+                            activeWeapon = w;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
 
         private void Start()
         {
