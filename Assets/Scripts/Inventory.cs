@@ -843,6 +843,19 @@ namespace WaywardSon
             def.itemType    = type;
             def.healAmount  = heal;
             def.ammoAmount  = ammo;
+
+            if (type == ItemDefinition.ItemType.Weapon)
+            {
+                if (name == "Glock 19")
+                {
+                    def.weaponData = Resources.Load<WeaponData>("Weapons/PistolData");
+                }
+                else if (name == "Shotgun")
+                {
+                    def.weaponData = Resources.Load<WeaponData>("Weapons/ShotgunData");
+                }
+            }
+
             AddItem(def);
         }
     }

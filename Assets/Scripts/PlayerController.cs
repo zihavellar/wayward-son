@@ -24,9 +24,13 @@ namespace WaywardSon
         private WeaponHandler weaponHandler;
         private PlayerHealth playerHealth;
         private FlashlightController flashlight;
+        private CharacterStamina characterStamina;
         private Camera mainCamera;
         private Vector2 moveInput;
         private Vector3 velocity;
+
+        /// <summary>Input de movimento normalizado (acesso público para CharacterStamina, etc).</summary>
+        public Vector2 MoveInput => moveInput;
 
         private void Start()
         {
@@ -34,6 +38,7 @@ namespace WaywardSon
             weaponHandler = GetComponent<WeaponHandler>();
             playerHealth = GetComponent<PlayerHealth>();
             flashlight = GetComponent<FlashlightController>();
+            characterStamina = GetComponent<CharacterStamina>();
             mainCamera = Camera.main;
         }
 
@@ -86,6 +91,41 @@ namespace WaywardSon
             bool mouseAim = Mouse.current != null && Mouse.current.rightButton.isPressed;
             bool gamepadAim = Gamepad.current != null && (Gamepad.current.leftTrigger.isPressed || Gamepad.current.leftShoulder.isPressed);
             isAiming = mouseAim || gamepadAim;
+
+            // 4. Sprint Input (Left Shift on Keyboard, Left Stick Click on Gamepad)
+            HandleSprintInput();
+        }
+
+        /// <summary>
+        /// Processa input de sprint: segurar Left Shift (teclado) ou clicar no Left Stick (gamepad).
+        /// Sprint só é possível quando se movendo, não está mirando e tem stamina.
+        /// </summary>
+        private void HandleSprintInput()
+        {
+            if (characterStamina == null) return;
+
+            bool sprintHeld = false;
+
+            // Keyboard: Left Shift
+            if (Keyboard.current != null)
+                sprintHeld = Keyboard.current.leftShiftKey.isPressed;
+
+            // Gamepad: Left Stick Click (toggle press)
+            if (!sprintHeld && Gamepad.current != null)
+                sprintHeld = Gamepad.current.leftStickButton.isPressed;
+
+            bool wantsToSprint = sprintHeld
+                              && moveInput.sqrMagnitude > 0.001f
+                              && !isAiming;
+
+            if (wantsToSprint)
+            {
+                characterStamina.TryStartSprint();
+            }
+            else
+            {
+                characterStamina.StopSprint();
+            }
         }
 
         private void HandleRotationAndAiming()
@@ -195,6 +235,12 @@ namespace WaywardSon
                     currentSpeed *= passiveSpeedPenalty;
                 }
 
+                // Apply Sprint Speed Multiplier (dobra a velocidade)
+                if (characterStamina != null && characterStamina.IsSprinting)
+                {
+                    currentSpeed *= characterStamina.SprintSpeedMultiplier;
+                }
+
                 moveDirection = GetCameraRelativeDirection(moveInput) * currentSpeed;
             }
 
@@ -207,7 +253,7 @@ namespace WaywardSon
 
         private Transform GetAutoAimTarget()
         {
-            EnemyHealth[] enemies = FindObjectsOfType<EnemyHealth>();
+            EnemyHealth[] enemies = FindObjectsByType<EnemyHealth>(FindObjectsSortMode.None);
             Transform bestTarget = null;
             float effectiveRange = autoAimRange;
 

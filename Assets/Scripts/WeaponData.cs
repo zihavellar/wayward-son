@@ -22,5 +22,9 @@ namespace WaywardSon
         public float spread = 0.05f;
         [Range(0f, 1f)]
         public float aimSpeedMultiplier = 0.3f; // Move at 30% speed when aiming
+
+        [Header("Swarm Firing")]
+        [Tooltip("Number of pellets/projectiles fired simultaneously")]
+        public int pelletsPerShot = 1;
     }
 }

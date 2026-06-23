@@ -94,13 +94,6 @@ namespace WaywardSon
 
         private void FireHitscan()
         {
-            Vector3 direction = firePoint.forward;
-            
-            // Apply spread
-            direction.x += Random.Range(-activeWeapon.spread, activeWeapon.spread);
-            direction.y += Random.Range(-activeWeapon.spread, activeWeapon.spread);
-            direction.Normalize();
-
             // Calculate effective damage (reduced when flashlight is off)
             int effectiveDamage = activeWeapon.damage;
             if (flashlight != null && !flashlight.IsFlashlightOn)
@@ -108,26 +101,37 @@ namespace WaywardSon
                 effectiveDamage = Mathf.RoundToInt(activeWeapon.damage * passiveDamageMultiplier);
             }
 
-            RaycastHit hit;
-            Vector3 endPoint = firePoint.position + direction * activeWeapon.range;
-
-            if (Physics.Raycast(firePoint.position, direction, out hit, activeWeapon.range))
+            int count = Mathf.Max(1, activeWeapon.pelletsPerShot);
+            for (int i = 0; i < count; i++)
             {
-                endPoint = hit.point;
+                Vector3 direction = firePoint.forward;
+                
+                // Apply spread
+                direction.x += Random.Range(-activeWeapon.spread, activeWeapon.spread);
+                direction.y += Random.Range(-activeWeapon.spread, activeWeapon.spread);
+                direction.Normalize();
 
-                // Check for EnemyHealth
-                EnemyHealth dummy = hit.collider.GetComponent<EnemyHealth>();
-                if (dummy != null)
+                RaycastHit hit;
+                Vector3 endPoint = firePoint.position + direction * activeWeapon.range;
+
+                if (Physics.Raycast(firePoint.position, direction, out hit, activeWeapon.range))
                 {
-                    dummy.TakeDamage(effectiveDamage);
+                    endPoint = hit.point;
+
+                    // Check for EnemyHealth
+                    EnemyHealth dummy = hit.collider.GetComponent<EnemyHealth>();
+                    if (dummy != null)
+                    {
+                        dummy.TakeDamage(effectiveDamage);
+                    }
+                    else
+                    {
+                        Debug.Log($"Hitscan hit: {hit.collider.name}");
+                    }
                 }
-                else
-                {
-                    Debug.Log($"Hitscan hit: {hit.collider.name}");
-                }
+
+                CreateTracer(firePoint.position, endPoint);
             }
-
-            CreateTracer(firePoint.position, endPoint);
         }
 
         private void FireProjectile()
@@ -138,11 +142,6 @@ namespace WaywardSon
                 return;
             }
 
-            Vector3 direction = firePoint.forward;
-            direction.x += Random.Range(-activeWeapon.spread, activeWeapon.spread);
-            direction.y += Random.Range(-activeWeapon.spread, activeWeapon.spread);
-            direction.Normalize();
-
             // Calculate effective damage (reduced when flashlight is off)
             int effectiveDamage = activeWeapon.damage;
             if (flashlight != null && !flashlight.IsFlashlightOn)
@@ -150,14 +149,23 @@ namespace WaywardSon
                 effectiveDamage = Mathf.RoundToInt(activeWeapon.damage * passiveDamageMultiplier);
             }
 
-            GameObject projObj = Instantiate(activeWeapon.projectilePrefab, firePoint.position, Quaternion.LookRotation(direction));
-            
-            Projectile proj = projObj.GetComponent<Projectile>();
-            if (proj == null)
+            int count = Mathf.Max(1, activeWeapon.pelletsPerShot);
+            for (int i = 0; i < count; i++)
             {
-                proj = projObj.AddComponent<Projectile>();
+                Vector3 direction = firePoint.forward;
+                direction.x += Random.Range(-activeWeapon.spread, activeWeapon.spread);
+                direction.y += Random.Range(-activeWeapon.spread, activeWeapon.spread);
+                direction.Normalize();
+
+                GameObject projObj = Instantiate(activeWeapon.projectilePrefab, firePoint.position, Quaternion.LookRotation(direction));
+                
+                Projectile proj = projObj.GetComponent<Projectile>();
+                if (proj == null)
+                {
+                    proj = projObj.AddComponent<Projectile>();
+                }
+                proj.damage = effectiveDamage;
             }
-            proj.damage = effectiveDamage;
         }
 
         private void CreateTracer(Vector3 start, Vector3 end)

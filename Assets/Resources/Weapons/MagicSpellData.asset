@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cf5bb5e4516e9434dae4b21e1f4bb1b0, type: 3}
   m_Name: MagicSpellData
-  m_EditorClassIdentifier: Assembly-CSharp::WaywardSon.WeaponData
+  m_EditorClassIdentifier: WaywardSon::WaywardSon.WeaponData
   weaponName: Ember Spell (Projectile)
   isHitscan: 0
   projectilePrefab: {fileID: 4898540360575731555, guid: bcdfc0f90632b494f8eb84e2b38dc029, type: 3}
@@ -21,3 +21,4 @@ MonoBehaviour:
   ammoCapacity: 5
   spread: 0.04
   aimSpeedMultiplier: 0.3
+  pelletsPerShot: 1

@@ -11,9 +11,13 @@ namespace WaywardSon.Editor
         public static void Setup()
         {
             // Create folders if they do not exist
-            if (!AssetDatabase.IsValidFolder("Assets/Weapons"))
+            if (!AssetDatabase.IsValidFolder("Assets/Resources"))
             {
-                AssetDatabase.CreateFolder("Assets", "Weapons");
+                AssetDatabase.CreateFolder("Assets", "Resources");
+            }
+            if (!AssetDatabase.IsValidFolder("Assets/Resources/Weapons"))
+            {
+                AssetDatabase.CreateFolder("Assets/Resources", "Weapons");
             }
             if (!AssetDatabase.IsValidFolder("Assets/Prefabs"))
             {
@@ -69,7 +73,12 @@ namespace WaywardSon.Editor
             Object.DestroyImmediate(projObj);
 
             // 3. Create Weapon Assets
-            string pistolPath = "Assets/Weapons/PistolData.asset";
+            if (!AssetDatabase.IsValidFolder("Assets/Resources"))
+                AssetDatabase.CreateFolder("Assets", "Resources");
+            if (!AssetDatabase.IsValidFolder("Assets/Resources/Weapons"))
+                AssetDatabase.CreateFolder("Assets/Resources", "Weapons");
+
+            string pistolPath = "Assets/Resources/Weapons/PistolData.asset";
             WeaponData pistolData = AssetDatabase.LoadAssetAtPath<WeaponData>(pistolPath);
             if (pistolData == null)
             {
@@ -82,10 +91,11 @@ namespace WaywardSon.Editor
                 pistolData.ammoCapacity = 8;
                 pistolData.spread = 0.015f;
                 pistolData.aimSpeedMultiplier = 0.5f;
+                pistolData.pelletsPerShot = 1;
                 AssetDatabase.CreateAsset(pistolData, pistolPath);
             }
 
-            string spellPath = "Assets/Weapons/MagicSpellData.asset";
+            string spellPath = "Assets/Resources/Weapons/MagicSpellData.asset";
             WeaponData spellData = AssetDatabase.LoadAssetAtPath<WeaponData>(spellPath);
             if (spellData == null)
             {
@@ -99,7 +109,25 @@ namespace WaywardSon.Editor
                 spellData.ammoCapacity = 5;
                 spellData.spread = 0.04f;
                 spellData.aimSpeedMultiplier = 0.3f;
+                spellData.pelletsPerShot = 1;
                 AssetDatabase.CreateAsset(spellData, spellPath);
+            }
+
+            string shotgunPath = "Assets/Resources/Weapons/ShotgunData.asset";
+            WeaponData shotgunData = AssetDatabase.LoadAssetAtPath<WeaponData>(shotgunPath);
+            if (shotgunData == null)
+            {
+                shotgunData = ScriptableObject.CreateInstance<WeaponData>();
+                shotgunData.weaponName = "Shotgun (Swarm Hitscan)";
+                shotgunData.isHitscan = true;
+                shotgunData.damage = 15;
+                shotgunData.fireRate = 0.8f;
+                shotgunData.range = 15f;
+                shotgunData.ammoCapacity = 2;
+                shotgunData.spread = 0.12f;
+                shotgunData.aimSpeedMultiplier = 0.3f;
+                shotgunData.pelletsPerShot = 8; // Swarm firing!
+                AssetDatabase.CreateAsset(shotgunData, shotgunPath);
             }
             
             AssetDatabase.SaveAssets();

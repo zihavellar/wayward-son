@@ -19,6 +19,7 @@ namespace WaywardSon
         public PlayerHealth playerHealth;
         public WeaponHandler weaponHandler;
         public FlashlightController flashlight;
+        public CharacterStamina characterStamina;
 
         [Header("Layout Settings")]
         public float topMargin = 20f;
@@ -46,13 +47,15 @@ namespace WaywardSon
         {
             // Auto-find references if not set
             if (playerController == null)
-                playerController = FindObjectOfType<PlayerController>();
+                playerController = FindAnyObjectByType<PlayerController>();
             if (playerHealth == null)
-                playerHealth = FindObjectOfType<PlayerHealth>();
+                playerHealth = FindAnyObjectByType<PlayerHealth>();
             if (weaponHandler == null)
-                weaponHandler = FindObjectOfType<WeaponHandler>();
+                weaponHandler = FindAnyObjectByType<WeaponHandler>();
             if (flashlight == null)
-                flashlight = FindObjectOfType<FlashlightController>();
+                flashlight = FindAnyObjectByType<FlashlightController>();
+            if (characterStamina == null)
+                characterStamina = FindAnyObjectByType<CharacterStamina>();
 
             // Create textures
             _whiteTexture = MakeTex(Color.white);
@@ -136,6 +139,22 @@ namespace WaywardSon
                 _batteryLabelStyle.normal.textColor = flashlight.IsFlashlightOn ? Color.yellow : new Color(0.5f, 0.5f, 0.5f);
                 GUI.Label(new Rect(x, y, 300, lineHeight), flashState, _batteryLabelStyle);
             }
+
+            // ── Stamina Bar ──
+            if (characterStamina != null)
+            {
+                y -= lineHeight + 10f;
+
+                DrawBar(x, y, barWidth, barHeight, characterStamina.StaminaNormalized, GetStaminaColor(), "STAMINA");
+                y -= barHeight + 6f;
+
+                // Sprint state
+                string sprintState = characterStamina.IsSprinting ? "▶ SPRINT" : "SHIFT Correr";
+                _batteryLabelStyle.normal.textColor = characterStamina.IsSprinting
+                    ? new Color(0.3f, 0.9f, 1f)
+                    : new Color(0.5f, 0.5f, 0.5f);
+                GUI.Label(new Rect(x, y, 300, lineHeight), sprintState, _batteryLabelStyle);
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════════
@@ -144,7 +163,7 @@ namespace WaywardSon
 
         private void DrawControlsHint()
         {
-            string text = "WASD Mover  |  RMB/LT Mirar  |  LMB/RT Atirar  |  F/LB Lanterna  |  I/Y Inventário  |  E/Cruz Coletar";
+            string text = "WASD Mover  |  LShift/L3 Correr  |  RMB/LT Mirar  |  LMB/RT Atirar  |  F/LB Lanterna  |  I/Y Inventário  |  E/Cruz Coletar";
             Vector2 size = _controlsStyle.CalcSize(new GUIContent(text));
 
             float x = (Screen.width - size.x) * 0.5f;
@@ -215,6 +234,15 @@ namespace WaywardSon
             if (flashlight == null) return Color.green;
             float pct = flashlight.BatteryPercentage;
             if (pct > 0.5f) return new Color(0.2f, 0.85f, 0.3f);
+            if (pct > 0.2f) return new Color(0.9f, 0.8f, 0.15f);
+            return new Color(0.9f, 0.2f, 0.15f);
+        }
+
+        private Color GetStaminaColor()
+        {
+            if (characterStamina == null) return Color.cyan;
+            float pct = characterStamina.StaminaNormalized;
+            if (pct > 0.5f) return new Color(0.3f, 0.85f, 1f);
             if (pct > 0.2f) return new Color(0.9f, 0.8f, 0.15f);
             return new Color(0.9f, 0.2f, 0.15f);
         }
